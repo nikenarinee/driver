@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<title>โหมดพี่วิน</title>
+<style>
+body {
+  font-family: 'Segoe UI', Arial, sans-serif;
+  margin: 0;
+  padding: 20px;
+  background-color: #f2f7f2; /* เขียวครีมอ่อนมาก */
+}
+
+.container {
+  max-width: 420px;
+  margin: auto;
+}
+
+.header {
+  text-align: center;
+  color: #065f46;
+  margin-bottom: 20px;
+}
+
+.card {
+  background: #ffffff;
+  padding: 20px;
+  border-radius: 24px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.05);
+  margin-bottom: 20px;
+}
+
+.title {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  color: #065f46;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.wait {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.active {
+  background: #d1fae5;
+  color: #047857;
+}
+
+.info-box {
+  background: #f9fafb;
+  padding: 12px;
+  border-radius: 16px;
+  margin-top: 12px;
+  font-size: 14px;
+  color: #334155;
+}
+
+button {
+  width: 100%;
+  padding: 12px;
+  margin-top: 15px;
+  border: none;
+  border-radius: 16px;
+  background: #6ee7b7;
+  color: #064e3b;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+button:hover {
+  background: #34d399;
+}
+
+iframe {
+  width: 100%;
+  height: 250px;
+  border-radius: 18px;
+  margin-top: 15px;
+  border: none;
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <div class="header">
+    <h2>🛵 โหมดพี่วิน</h2>
+  </div>
+
+  <div class="card">
+    <div class="title">สถานะงาน</div>
+    <div id="rideStatus" class="status-badge wait">รอลูกค้า...</div>
+
+    <div id="rideDetails" class="info-box" style="display:none;"></div>
+
+    <button id="acceptBtn" onclick="acceptRide()" style="display:none;">
+      รับงาน
+    </button>
+
+    <div id="mapContainer"></div>
+  </div>
+
+  <div class="card">
+    <div class="title">สถานะการชำระเงิน</div>
+    <div id="paymentStatus" class="status-badge wait">-</div>
+  </div>
+
+</div>
+
+<script>
+
+let mapLoaded = false;
+
+function checkRide() {
+  const ride = JSON.parse(localStorage.getItem("newRide"));
+
+  if (ride && ride.status === "waiting") {
+
+    document.getElementById("rideStatus").innerText = "มีงานเข้า";
+    document.getElementById("rideStatus").className = "status-badge active";
+
+    document.getElementById("rideDetails").style.display = "block";
+    document.getElementById("rideDetails").innerHTML =
+      "📍 จุดรับ: " + ride.pickupText +
+      "<br>🏁 จุดส่ง: " + ride.dropoffText;
+
+    document.getElementById("acceptBtn").style.display = "block";
+    document.getElementById("mapContainer").innerHTML = "";
+    mapLoaded = false;
+  }
+
+  else if (ride && ride.status === "accepted") {
+
+    document.getElementById("rideStatus").innerText = "กำลังไปรับลูกค้า";
+    document.getElementById("rideStatus").className = "status-badge active";
+
+    document.getElementById("acceptBtn").style.display = "none";
+
+    if (!mapLoaded) {
+
+      let mapUrl = ride.pickupCoords
+        ? `https://www.google.com/maps?q=${ride.pickupCoords[0]},${ride.pickupCoords[1]}&output=embed`
+        : `https://www.google.com/maps?q=${ride.pickupText}&output=embed`;
+
+      document.getElementById("mapContainer").innerHTML =
+        `<iframe src="${mapUrl}"></iframe>`;
+
+      mapLoaded = true;
+    }
+  }
+
+  else {
+
+    document.getElementById("rideStatus").innerText = "รอลูกค้า...";
+    document.getElementById("rideStatus").className = "status-badge wait";
+    document.getElementById("rideDetails").style.display = "none";
+    document.getElementById("acceptBtn").style.display = "none";
+    document.getElementById("mapContainer").innerHTML = "";
+    mapLoaded = false;
+  }
+}
+
+function acceptRide() {
+  let ride = JSON.parse(localStorage.getItem("newRide"));
+  ride.status = "accepted";
+  localStorage.setItem("newRide", JSON.stringify(ride));
+  alert("รับงานแล้ว 🚲");
+}
+
+function checkPayment() {
+  const ride = JSON.parse(localStorage.getItem("newRide"));
+  const payment = document.getElementById("paymentStatus");
+
+  if (ride) {
+    if (ride.paid) {
+      payment.innerText = "ชำระแล้ว ✅";
+      payment.className = "status-badge active";
+    } else {
+      payment.innerText = "ยังไม่ชำระ ❌";
+      payment.className = "status-badge wait";
+    }
+  } else {
+    payment.innerText = "-";
+    payment.className = "status-badge wait";
+  }
+}
+
+setInterval(() => {
+  checkRide();
+  checkPayment();
+}, 1000);
+
+</script>
+
+</body>
+</html>
