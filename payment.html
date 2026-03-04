@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ชำระเงิน</title>
+
+<style>
+body{
+  margin:0;
+  font-family:'Segoe UI',sans-serif;
+  background:#f5f7f9;
+  text-align:center;
+}
+.header{
+  background:#22c55e;
+  color:white;
+  padding:15px;
+  font-weight:600;
+}
+.box{
+  background:white;
+  margin:30px auto;
+  padding:25px;
+  border-radius:20px;
+  width:90%;
+  max-width:400px;
+  box-shadow:0 10px 25px rgba(0,0,0,0.08);
+}
+.price{
+  font-size:32px;
+  font-weight:bold;
+  color:#22c55e;
+}
+.method{
+  padding:12px;
+  margin-top:10px;
+  border-radius:12px;
+  background:#f0f2f5;
+  cursor:pointer;
+}
+button{
+  margin-top:20px;
+  padding:12px 20px;
+  border:none;
+  border-radius:20px;
+  background:#22c55e;
+  color:white;
+  font-size:16px;
+  cursor:pointer;
+}
+</style>
+</head>
+
+<body>
+
+<div class="header">💳 ชำระเงิน</div>
+
+<div class="box">
+  <div>ยอดชำระ</div>
+  <div class="price">฿10</div>
+
+  <div class="method">💵 เงินสด</div>
+  <div class="method">📱 PromptPay</div>
+  <div class="method">💳 บัตรเครดิต</div>
+
+  <button onclick="completePayment()">
+    ยืนยันการชำระเงิน
+  </button>
+</div>
+
+<audio id="successSound" src="success.mp3" preload="auto"></audio>
+
+<script>
+function completePayment() {
+
+  const sound = document.getElementById("successSound");
+  sound.currentTime = 0;
+  sound.play().catch(e => console.log("เล่นเสียงไม่ได้", e));
+
+  // ✅ อัปเดตสถานะการจ่ายเงิน
+  let ride = JSON.parse(localStorage.getItem("newRide"));
+
+  if (ride) {
+    ride.paid = true;
+    ride.status = "completed";
+    localStorage.setItem("newRide", JSON.stringify(ride));
+  }
+
+  setTimeout(() => {
+    alert("ชำระเงินสำเร็จ 🎉");
+    window.location.href = "index.html";
+  }, 1000);
+}
+</script>
+
+</body>
+</html>

@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>แชทกับวิน</title>
+
+<style>
+body{
+  margin:0;
+  font-family:'Segoe UI',sans-serif;
+  display:flex;
+  flex-direction:column;
+  height:100vh;
+  background:#f5f7f9;
+}
+
+.header{
+  background:#22c55e;
+  color:white;
+  padding:15px;
+  display:flex;
+  align-items:center;
+}
+
+.header button{
+  background:none;
+  border:none;
+  color:white;
+  font-size:18px;
+  margin-right:10px;
+  cursor:pointer;
+}
+
+.messages{
+  flex:1;
+  padding:15px;
+  overflow-y:auto;
+}
+
+.msg{
+  background:white;
+  padding:10px 15px;
+  border-radius:15px;
+  margin-bottom:10px;
+  max-width:70%;
+  box-shadow:0 5px 12px rgba(0,0,0,0.08);
+}
+
+.user{
+  background:#22c55e;
+  color:white;
+  margin-left:auto;
+}
+
+.input-area{
+  display:flex;
+  padding:10px;
+  background:white;
+}
+
+input{
+  flex:1;
+  padding:10px;
+  border-radius:20px;
+  border:1px solid #ddd;
+}
+
+button.send{
+  background:#22c55e;
+  border:none;
+  color:white;
+  border-radius:20px;
+  padding:10px 15px;
+  margin-left:10px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="header">
+  <button onclick="window.location.href='index.html'">⬅</button>
+  แชทกับวิน
+</div>
+
+<div class="messages" id="messages"></div>
+
+<div class="input-area">
+  <input type="text" id="input" placeholder="พิมพ์ข้อความ...">
+  <button class="send" onclick="send()">ส่ง</button>
+</div>
+
+<script>
+function send(){
+  const input=document.getElementById("input");
+  const box=document.getElementById("messages");
+
+  if(input.value.trim()!=""){
+    const user=document.createElement("div");
+    user.className="msg user";
+    user.innerText=input.value;
+    box.appendChild(user);
+
+    input.value="";
+    box.scrollTop=box.scrollHeight;
+
+    setTimeout(()=>{
+      const reply=document.createElement("div");
+      reply.className="msg";
+      reply.innerText="กำลังไปครับ 👍";
+      box.appendChild(reply);
+      box.scrollTop=box.scrollHeight;
+    },1000);
+  }
+}
+</script>
+
+</body>
+</html>

@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>เรียกวินใน มทร.ธัญบุรี</title>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.css"/>
+
+<style>
+body {
+  font-family: Arial, sans-serif;
+  text-align: center;
+  margin: 0;
+  background: #f6fef9;
+}
+h1 { margin-top: 20px; color: #16a34a; }
+button {
+  padding: 10px 20px;
+  font-size: 15px;
+  background-color: #16a34a;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  margin: 8px;
+}
+input {
+  width: 80%;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid #16a34a;
+  margin: 5px;
+}
+#map {
+  height: 400px;
+  width: 90%;
+  margin: 20px auto;
+  border-radius: 20px;
+}
+.suggestions {
+  width: 80%;
+  margin: auto;
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+  position: relative;
+  z-index: 1000;
+}
+.suggestion-item { padding: 8px; cursor: pointer; }
+.suggestion-item:hover { background: #dcfce7; }
+
+.status-container {
+  width: 90%;
+  max-width: 450px;
+  margin: 20px auto;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+.card {
+  padding: 15px 20px;
+  border-radius: 18px;
+  background: white;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+  font-weight: bold;
+  opacity: 0;
+  transform: translateY(15px);
+  transition: all 0.5s ease;
+}
+.card.show { opacity: 1; transform: translateY(0); }
+.card.done { background: #16a34a; color: white; }
+
+.driver-actions {
+  display: none;
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  flex-direction: column;
+  gap: 12px;
+  z-index: 1000;
+}
+.driver-actions button {
+  width: 55px;
+  height: 55px;
+  border-radius: 50%;
+  font-size: 22px;
+  box-shadow: 0 6px 15px rgba(0,0,0,0.2);
+}
+</style>
+</head>
+
+<body>
+
+<h1>🚲 เรียกวินใน มทร.ธัญบุรี</h1>
+
+<div>
+  <input type="text" id="pickupInput" placeholder="📍 จุดรับ" oninput="showSuggestions('pickup')">
+  <div id="pickupSuggestions" class="suggestions"></div>
+</div>
+
+<div>
+  <input type="text" id="dropoffInput" placeholder="🏁 จุดส่ง" oninput="showSuggestions('dropoff')">
+  <div id="dropoffSuggestions" class="suggestions"></div>
+</div>
+
+<button onclick="callWin()">เรียกวิน</button>
+
+<div id="map"></div>
+
+<div class="status-container">
+  <div class="card" id="card1">🔄 กำลังหาวิน...</div>
+  <div class="card" id="card2">✅ รับงานแล้ว</div>
+  <div class="card" id="card3">🚲 วินกำลังเดินทาง</div>
+  <div class="card" id="card4">📍 ใกล้ถึงแล้ว</div>
+  <div class="card" id="card5">✔ ถึงแล้ว</div>
+</div>
+
+<div class="driver-actions" id="driverActions">
+  <button onclick="callDriver()">📞</button>
+  <button onclick="goToChat()">💬</button>
+  <button onclick="goToPayment()">💳</button>
+</div>
+
+<audio id="acceptSound" src="accept.mp3"></audio>
+
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.js"></script>
+
+<script>
+let map;
+let routingControl;
+let pickupCoords = null;
+let dropoffCoords = null;
+let rideStatusChecker = null;
+let alreadyPlayed = false;
+let statusStarted = false;
+
+const campusBounds = L.latLngBounds(
+  [14.0300, 100.7150],
+  [14.0450, 100.7350]
+);
+
+const locations = {
+  "ตึกวิศวกรรมศาสตร์": [14.0378, 100.7248],
+  "ตึกบริหารธุรกิจ": [14.0365, 100.7239],
+  "ตึกวิทยาศาสตร์": [14.0385, 100.7260],
+  "หอพักนักศึกษา": [14.0338, 100.7215],
+  "โรงอาหารกลาง": [14.0372, 100.7242],
+  "สนามฟุตบอล": [14.0395, 100.7280],
+  "หน้ามหาวิทยาลัย": [14.0355, 100.7180]
+};
+
+window.onload = function () {
+  map = L.map('map', {
+    maxBounds: campusBounds,
+    maxBoundsViscosity: 1.0
+  }).setView([14.0370, 100.7240], 16);
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png')
+    .addTo(map);
+};
+
+function showSuggestions(type) {
+  const input = document.getElementById(type + "Input").value;
+  const suggestionBox = document.getElementById(type + "Suggestions");
+  suggestionBox.innerHTML = "";
+  if (!input) return;
+
+  Object.keys(locations).forEach(place => {
+    if (place.includes(input)) {
+      const div = document.createElement("div");
+      div.className = "suggestion-item";
+      div.innerText = place;
+      div.onclick = () => {
+        document.getElementById(type + "Input").value = place;
+        suggestionBox.innerHTML = "";
+        if (type === "pickup") pickupCoords = locations[place];
+        else dropoffCoords = locations[place];
+      };
+      suggestionBox.appendChild(div);
+    }
+  });
+}
+
+function callWin() {
+
+  if (!pickupCoords || !dropoffCoords) {
+    alert("กรุณาเลือกสถานที่จากรายการ");
+    return;
+  }
+
+  alreadyPlayed = false;
+  statusStarted = false;
+
+  const rideData = {
+    pickupText: document.getElementById("pickupInput").value,
+    dropoffText: document.getElementById("dropoffInput").value,
+    pickupCoords: pickupCoords,
+    dropoffCoords: dropoffCoords,
+    status: "waiting",
+    paid: false
+  };
+
+  localStorage.setItem("newRide", JSON.stringify(rideData));
+
+  if (routingControl) map.removeControl(routingControl);
+
+  routingControl = L.Routing.control({
+    waypoints: [
+      L.latLng(...pickupCoords),
+      L.latLng(...dropoffCoords)
+    ],
+    addWaypoints: false,
+    draggableWaypoints: false,
+    routeWhileDragging: false,
+    show: true
+  }).addTo(map);
+
+  const cards = [
+    card1, card2, card3, card4, card5
+  ];
+
+  cards.forEach(card => card.classList.remove("show", "done"));
+  document.getElementById("driverActions").style.display = "none";
+
+  card1.classList.add("show");
+
+  rideStatusChecker = setInterval(checkRideStatus, 1000);
+}
+
+function checkRideStatus() {
+  const ride = JSON.parse(localStorage.getItem("newRide"));
+  if (!ride) return;
+
+  if (ride.status === "accepted" && !statusStarted) {
+
+    statusStarted = true;
+
+    card1.classList.add("done");
+    card2.classList.add("show");
+
+    if (!alreadyPlayed) {
+      acceptSound.currentTime = 0;
+      acceptSound.play().catch(() => {});
+      alreadyPlayed = true;
+    }
+
+    setTimeout(() => {
+      card2.classList.add("done");
+      card3.classList.add("show");
+    }, 2000);
+
+    setTimeout(() => {
+      card3.classList.add("done");
+      card4.classList.add("show");
+    }, 4000);
+
+    setTimeout(() => {
+      card4.classList.add("done");
+      card5.classList.add("show");
+      driverActions.style.display = "flex";
+    }, 6000);
+  }
+
+  if (ride.paid === true) {
+    alert("ลูกค้าชำระเงินเรียบร้อยแล้ว ✅");
+    clearInterval(rideStatusChecker);
+  }
+}
+
+function callDriver() {
+  window.location.href = "tel:0812345678";
+}
+
+function goToChat() {
+  window.location.href = "chat.html";
+}
+
+function goToPayment() {
+  window.location.href = "payment.html";
+}
+</script>
+
+</body>
+</html>
